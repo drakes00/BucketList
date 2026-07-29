@@ -6,6 +6,7 @@ import { pb } from '../lib/pocketbase'
 import { useSchemaStore } from '../stores/schema'
 import ChecklistTable from '../components/ChecklistTable.vue'
 import RecordForm from '../components/RecordForm.vue'
+import ImportDialog from '../components/ImportDialog.vue'
 
 const route = useRoute()
 const schema = useSchemaStore()
@@ -15,6 +16,7 @@ const loading = ref(true)
 const error = ref('')
 const editingRecord = ref<RecordModel | undefined>(undefined)
 const showForm = ref(false)
+const showImport = ref(false)
 
 const collectionName = computed(() => route.params.name as string)
 const collection = computed(() => schema.byName(collectionName.value))
@@ -42,10 +44,16 @@ watch(collectionName, loadRecords)
 
 function openCreate() {
   editingRecord.value = undefined
+  showImport.value = false
   showForm.value = true
+}
+function openImport() {
+  showForm.value = false
+  showImport.value = true
 }
 function openEdit(record: RecordModel) {
   editingRecord.value = record
+  showImport.value = false
   showForm.value = true
 }
 async function onSaved() {
@@ -64,13 +72,20 @@ async function onDelete(record: RecordModel) {
   <div class="flex flex-col gap-4">
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-semibold capitalize">{{ collectionName.replace(/_/g, ' ') }}</h1>
-      <button
-        v-if="collection"
-        class="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
-        @click="openCreate"
-      >
-        + New
-      </button>
+      <div v-if="collection" class="flex gap-2">
+        <button
+          class="rounded border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-900"
+          @click="openImport"
+        >
+          Import CSV
+        </button>
+        <button
+          class="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500"
+          @click="openCreate"
+        >
+          + New
+        </button>
+      </div>
     </div>
 
     <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
@@ -83,6 +98,11 @@ async function onDelete(record: RecordModel) {
     <div v-if="collection && showForm" class="rounded border border-gray-300 dark:border-gray-600 p-4">
       <h2 class="mb-3 font-medium">{{ editingRecord ? 'Edit item' : 'New item' }}</h2>
       <RecordForm :collection="collection" :record="editingRecord" @saved="onSaved" @cancel="showForm = false" />
+    </div>
+
+    <div v-if="collection && showImport" class="rounded border border-gray-300 dark:border-gray-600 p-4">
+      <h2 class="mb-3 font-medium">Import CSV</h2>
+      <ImportDialog :collection="collection" @imported="loadRecords" @cancel="showImport = false" />
     </div>
 
     <p v-if="loading" class="text-gray-500">Loading…</p>

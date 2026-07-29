@@ -42,6 +42,17 @@ function findStatusField(fields: CollectionField[]): CollectionField | undefined
   return hasAllStatuses ? field : undefined
 }
 
+/**
+ * PocketBase number columns are NOT NULL with a 0 default, so a record that was
+ * never given coordinates reads back as 0/0 — a real location in the Gulf of
+ * Guinea. Treat that exact pair as "no coordinates" instead of pinning it.
+ */
+export function toCoords(lat: unknown, lon: unknown): [number, number] | null {
+  if (typeof lat !== 'number' || typeof lon !== 'number') return null
+  if (lat === 0 && lon === 0) return null
+  return [lat, lon]
+}
+
 export function hasGeoPair(fields: CollectionField[]): boolean {
   const hasLat = fields.some((f) => f.name === LAT_FIELD && f.type === 'number')
   const hasLon = fields.some((f) => f.name === LON_FIELD && f.type === 'number')

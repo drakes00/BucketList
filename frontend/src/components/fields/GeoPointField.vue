@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import L from 'leaflet'
 import '../../lib/leaflet-icon-fix'
+import { toCoords } from '../../lib/schema'
 
 const lat = defineModel<number | null>('lat', { default: null })
 const lon = defineModel<number | null>('lon', { default: null })
@@ -25,13 +26,13 @@ function setPosition(latLng: L.LatLng) {
 
 onMounted(() => {
   if (!mapEl.value) return
-  const center: [number, number] = lat.value != null && lon.value != null ? [lat.value, lon.value] : DEFAULT_CENTER
-  map = L.map(mapEl.value).setView(center, lat.value != null ? 12 : 4)
+  const coords = toCoords(lat.value, lon.value)
+  map = L.map(mapEl.value).setView(coords ?? DEFAULT_CENTER, coords ? 12 : 4)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors',
   }).addTo(map)
-  if (lat.value != null && lon.value != null) {
-    marker = L.marker(center).addTo(map)
+  if (coords) {
+    marker = L.marker(coords).addTo(map)
   }
   map.on('click', (e: L.LeafletMouseEvent) => setPosition(e.latlng))
 })
@@ -41,8 +42,9 @@ onBeforeUnmount(() => {
 })
 
 watch([lat, lon], ([newLat, newLon]) => {
-  if (newLat == null || newLon == null || !map) return
-  const latLng = L.latLng(newLat, newLon)
+  const coords = toCoords(newLat, newLon)
+  if (!coords || !map) return
+  const latLng = L.latLng(coords[0], coords[1])
   if (marker) marker.setLatLng(latLng)
   else marker = L.marker(latLng).addTo(map)
 })

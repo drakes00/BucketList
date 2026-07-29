@@ -60,6 +60,63 @@ either way.
 Once a collection matches the convention, it shows up automatically on the
 dashboard and at `/c/<collection-name>` — no frontend code changes needed.
 
+## Schema migrations
+
+`backend/pb_migrations/` is bind-mounted into the container, so collection
+schemas live in git. PocketBase applies pending migrations on startup and
+**auto-generates a new migration file whenever you change a collection in the
+admin panel** — those land straight in the repo, ready to commit.
+
+`eki_stamps` ships as a migration (`*_created_eki_stamps.js`) and is created for
+you on first start. To write one by hand, copy the shape of an existing file:
+field `id`s and the system `id` primary key can be omitted, and PocketBase fills
+them in.
+
+### Automatic geo fields
+
+`backend/pb_hooks/geo_fields.pb.js` adds the `lat`/`lon` pair to any collection
+that qualifies as a checklist, on both create *and* update — `status` is often
+added to a collection after the fact, and that counts. So every checklist is
+map-ready without you having to remember.
+
+Two consequences worth knowing:
+
+- The hook **re-adds `lat`/`lon` if you delete them** from a checklist
+  collection. To genuinely drop them, remove the `status` field first (which
+  also removes the collection from the app).
+- PocketBase number columns are `NOT NULL DEFAULT 0`, so a record with no
+  coordinates reads back as `0, 0` — a real spot in the Gulf of Guinea. The app
+  treats that exact pair as "no coordinates" (`toCoords` in
+  `frontend/src/lib/schema.ts`) rather than dropping a pin on Null Island.
+
+## Importing records from CSV
+
+PocketBase can import/export collection *schemas* from the admin panel, but not
+records. The app adds that: open a collection from the dashboard and click
+**Import CSV**.
+
+The importer only ever writes records into the collection you're viewing — it
+never creates or modifies a collection. Use **Download template** in the dialog
+to get a CSV with the correct header row.
+
+Rules:
+
+- **Column names must match the collection's field names exactly.** Any unknown,
+  duplicate, or misspelled column refuses the whole file, as does a missing
+  column for a required field. Optional fields may simply be left out.
+- `status` values must be `todo`, `ongoing` or `completed`. Numbers must parse,
+  dates must be `YYYY-MM-DD` or an ISO timestamp, booleans accept
+  `true`/`false`, `1`/`0` or `yes`/`no`.
+- `created` and `updated` are set by PocketBase — don't include them.
+- File/photo fields can't come from a CSV; attach those by editing the record.
+- Comma, semicolon and tab delimiters are supported and auto-detected. Quoted
+  fields may contain delimiters and newlines.
+
+Rows are validated against the schema before anything is written, and bad rows
+are listed with their line number. You can then import the valid rows and fix
+the rest separately. Every row is created as a new record — importing the same
+file twice gives you duplicates.
+
 ## Development
 
 Run PocketBase locally (or via `docker compose up pocketbase`), then in a

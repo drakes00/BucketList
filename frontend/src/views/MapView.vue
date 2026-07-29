@@ -3,7 +3,7 @@ import { onMounted, onBeforeUnmount, ref } from 'vue'
 import L from 'leaflet'
 import '../lib/leaflet-icon-fix'
 import { pb } from '../lib/pocketbase'
-import { LAT_FIELD, LON_FIELD, recordDisplayName } from '../lib/schema'
+import { LAT_FIELD, LON_FIELD, recordDisplayName, toCoords } from '../lib/schema'
 import { useSchemaStore } from '../stores/schema'
 
 const schema = useSchemaStore()
@@ -25,10 +25,9 @@ onMounted(async () => {
     for (const collection of schema.collections.filter((c) => c.hasGeo)) {
       const records = await pb.collection(collection.name).getFullList()
       for (const record of records) {
-        const lat = record[LAT_FIELD]
-        const lon = record[LON_FIELD]
-        if (typeof lat !== 'number' || typeof lon !== 'number') continue
-        const latLng = L.latLng(lat, lon)
+        const coords = toCoords(record[LAT_FIELD], record[LON_FIELD])
+        if (!coords) continue
+        const latLng = L.latLng(coords[0], coords[1])
         markers.push(latLng)
         L.marker(latLng)
           .addTo(map)
