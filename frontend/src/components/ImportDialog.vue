@@ -102,7 +102,11 @@ async function runImport() {
     while (cursor < queue.length) {
       const record = queue[cursor++]
       try {
-        await pb.collection(props.collection.name).create(record.data)
+        // requestKey: null opts out of the SDK's auto-cancellation. By default every
+        // create on a collection shares one key, so concurrent rows cancel each other
+        // — and worse, the server still processes the abandoned request, so rows land
+        // while being reported as failures.
+        await pb.collection(props.collection.name).create(record.data, { requestKey: null })
         created++
       } catch (err) {
         failures.push({ line: record.line, message: errorMessage(err) })
